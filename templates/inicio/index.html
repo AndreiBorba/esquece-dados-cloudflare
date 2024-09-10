@@ -1,0 +1,138 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esquece Cliente Linx/Youcom</title>
+    <link rel=icon type=image/png sizes=32x32 href="https://www.youcom.com.br/_sr/static/icons/favicon.ico">
+    <link rel="stylesheet" href="{% static '/styles/style.css' %}">
+    <script>
+        function solicitarSenha() {
+            const senhaCorreta = '@bc123987@bc';
+            const senhaInserida = prompt('INSIRA SUA SENHA:');
+
+             if (senhaInserida === senhaCorreta) {
+                document.body.style.display = 'block';
+            } else {
+                alert('Senha incorreta. Acesso negado.');
+                window.location.href = 'https://www.google.com';
+            }
+        }
+
+        // Executa a função solicitarSenha ao carregar a página
+        window.onload = solicitarSenha;
+        function limitarDigitos(input, maximo) {
+            if (input.value.length > maximo) {
+            input.value = input.value.slice(0, maximo);
+            }
+  }
+        function ClearText() {
+            document.getElementById('document_number').value = '';
+            document.getElementById('resultado').innerText = '';
+            document.getElementById('resultado-section').classList.add('hidden');
+            document.getElementById('esquecer-button').classList.add('hidden');
+        }
+        async function consultarCliente() {
+            const documentNumber = document.getElementById('document_number').value.trim();
+            const formData = new FormData();
+            formData.append('document_number', documentNumber);
+            try {
+                const response = await fetch('/consultar_cliente/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro na consulta ao servidor.');
+                }
+                const result = await response.json();
+                if (result.Result && result.Result.length === 0) {
+                    alert(`Cliente não localizado.\nO CPF pode estar incorreto ou ter sido removido da base.`);
+                    ClearText();
+                    return;
+                }
+                const { Name, DocumentNumber, Email, CustomerID } = result.Result[0] || {};
+                globalCustomerId = CustomerID;
+                const resultadoFormatado = `
+                    <div><strong>Nome Cliente:</strong> ${Name || 'Não disponível'}</div>
+                    <div><strong>CPF:</strong> ${DocumentNumber || 'Não disponível'}</div>
+                    <div><strong>Email:</strong> ${Email || 'Não disponível'}</div>
+                    <div><strong>ID do Cliente:</strong> ${CustomerID || 'Não disponível'}</div>
+                `;
+                document.getElementById('resultado').innerHTML = resultadoFormatado;
+                document.getElementById('resultado-section').classList.remove('hidden');
+                document.getElementById('esquecer-button').classList.remove('hidden');
+            } catch (error) {
+                alert('Ocorreu um erro durante a consulta. Tente novamente mais tarde.');
+                console.error('Erro:', error);
+            }
+        }
+
+        async function esquecerCliente() {
+            const confirmMessage = 'O processo é totalmente irreversível.\n'+ 'Deseja continuar?';
+            const confirmAction = window.confirm(confirmMessage);
+            if (confirmAction) {
+                const funcional = prompt('Por favor, insira sua funcional:');
+                if (funcional) {
+                    // Verifica se a funcional é numérica
+                    if (/^\d+$/.test(funcional)) {
+                        alert("Sua funcional foi registrada!\nProcessando o esquecimento do cliente.");
+                        if(globalCustomerId){
+                            const formData = new FormData();
+                            formData.append('globalCustomerId', globalCustomerId);
+                            const response = await fetch('/esquecer_cliente/', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            const result = await response.json();
+                            if(Object.keys(result).length === 0) {
+                                throw new Error('Erro ao esquecer cliente.');
+                                alert('Não foi possível efetuar o esquecimento.');
+                            }
+                            const dataAtual = new Date();
+                            const dataFormatada = dataAtual.toLocaleDateString('pt-BR');
+                            const horaFormatada = dataAtual.toLocaleTimeString('pt-BR', { hour12: false });
+                            alert(`Processo realizado com sucesso.\nSolicitante: ${funcional}\nData e Hora: ${dataFormatada} ${horaFormatada}`);
+                            globalCustomerId = null;
+                            ClearText()
+                        }
+                    } else {
+                        alert('A funcional deve conter apenas caracteres numéricos.');
+                    }
+                } else {
+                    alert('Funcional não fornecida. O processo de esquecimento foi cancelado.');
+                }
+            } else {
+                ClearText();
+            }
+        }
+    </script>
+<body>
+    <body style="display: none;"></body>
+    <h1>Esquecimento de dados Youcom/Linx - Anonimização</h1>
+    <p>Este processo consiste no esquecimento total de dados do cliente dentro dos sistemas LINX e é Irreversível!</p>
+    <section>
+        <div>
+            <strong>Insira abaixo somente os Números <br/>do CPF do cliente que deseja consultar!  <br/> <br/> </strong>
+            <input type="number" id="document_number" placeholder="  Digite o CPF" name="document_number" inputmode="numeric" pattern="[0-9]*" oninput="limitarDigitos(this, 11); this.value = this.value.replace(/[^0-9]/g, '');"><br/><br/>
+            <button onclick="ClearText()">Limpar</button>
+            <button onclick="consultarCliente()">Consultar Cliente</button>
+        </div>
+    </section>
+    <br/><br/><br/>
+
+    <section id="resultado-section" class="hidden">
+        <pre id="resultado"></pre>
+        <div>
+            <button id="esquecer-button" class="esquecer-button hidden" onclick="esquecerCliente()">Esquecer Cliente</button>
+        </div>
+    </section>
+    </div>
+    <footer>
+        <br/><br/>
+        <strong>Importante: </strong>O processo de esquecimento pode levar até 3 minutos para refletir completamente.<br/>
+        <p>&copy; Operações Digitais - Lojas Renner </p>
+    </footer>
+</body>
+</html>
